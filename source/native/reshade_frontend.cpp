@@ -1549,6 +1549,23 @@ void SetFooter(const char* text, Tone tone)
 // menu is closed. Toggled beside the FPS row; [Overlay] PinnedFps.
 std::atomic<bool> gPinnedFps{false};
 
+// Beginner menu (simplemenu.1): hides advanced controls. [Overlay] SimpleMenu,
+// on by default so RTX 20 newcomers see MFG unlock and DLSS 5 first.
+std::atomic<bool> gSimpleMenu{true};
+
+bool SimpleMenuActive() noexcept
+{
+    return gSimpleMenu.load(std::memory_order_acquire);
+}
+
+void PersistSimpleMenu(bool simple)
+{
+    gSimpleMenu.store(simple, std::memory_order_release);
+    const auto path = standalone_ui::SettingsPath("RTX40MFG-UI.ini");
+    if (!path.empty())
+        WritePrivateProfileStringW(L"Overlay", L"SimpleMenu", simple ? L"1" : L"0", path.c_str());
+}
+
 // xemfgsa.5: `tooltip` names the frame rates the readout shows (DLSS's by default, XeMFG's beside XeMFG's row).
 void PinnedFpsToggle(const char* tooltip = nullptr)
 {
@@ -1954,6 +1971,31 @@ bool CompareKeyControl(dlss5::Settings& s)
     return changed;
 }
 
+void DrawSimpleMenuBar()
+{
+    Section(T("Menu"));
+    if (!BeginGrid("##simplemenu")) return;
+    ControlRow(T("Detail"));
+    const char* const modes[]{T("Simple"), T("Full")};
+    uint32_t choice = SimpleMenuActive() ? 0u : 1u;
+    if (ChoiceCombo("##simplemenumode", choice, modes, 2))
+        PersistSimpleMenu(choice == 0u);
+    HelpMarker(T("Simple keeps the controls most players need: unlock Frame Generation,\n"
+        "pick an MFG multiplier, and turn on DLSS 5 Neural Rendering.\n"
+        "Full shows every option, including XeMFG, presets, latency and diagnostics."));
+    ImGui::EndTable();
+    if (SimpleMenuActive())
+    {
+        const uint32_t family = gGpuFamily.load(std::memory_order_acquire);
+        if (family == 4u)
+            Note(Tone::Normal, "%s", T("RTX 20 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick 2x or 3x, then open DLSS 5 for Neural Rendering."));
+        else if (family == 2u)
+            Note(Tone::Normal, "%s", T("RTX 30 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick a multiplier, then open DLSS 5 for Neural Rendering."));
+        else
+            Note(Tone::Normal, "%s", T("Quick start: turn Frame Generation on in the game, pick a multiplier here, then open DLSS 5 for Neural Rendering when nvngx_dlssnr.dll is present."));
+    }
+}
+
 const char* Dlss5StateName(uint32_t state,Tone& tone)
 {
     switch(static_cast<dlss5::State>(state)){
@@ -1985,11 +2027,16 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
     const dlss5::Settings before=s;
     bool save=false;
     const bool present=s.enabled && s.stage==static_cast<uint32_t>(dlss5::Stage::ePresent);
+    const bool simple=SimpleMenuActive();
     BeginStaleDisabled(stale);
 
     // The simple view: what most players change. Everything else is under
-    // Advanced, which keeps every saved value while it is closed.
+    // Advanced, which keeps every saved value while it is closed. Beginner
+    // Simple mode keeps only Hook Method, Look and Half rate.
     Section(T("Neural Rendering"));
+    if(simple && (snapshot.dlss5State==static_cast<uint32_t>(dlss5::State::eNotInstalled)
+        || snapshot.dlss5State==static_cast<uint32_t>(dlss5::State::eUnsupported)))
+        Note(Tone::Pending,"%s",T("Place NVIDIA's nvngx_dlssnr.dll beside the game executable. It must be a build that supports your GPU (RTX 20 included)."));
     if(BeginGrid("##dlss5nr")){
         // Menu order: Off, Auto (stage 0), then stages 1-3. The Auto entry names
         // the stage Auto runs: the live one once DLSS 5 runs it, else the policy's.
@@ -2005,7 +2052,9 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
         const uint32_t unavailable=snapshot.graphicsApi==2u?(1u<<2)|(1u<<4):0u;
         ControlRow(T("Hook Method"));
         if(ChoiceCombo("##dlss5stage",choice,stages,5,unavailable)){s.enabled=choice!=0;if(choice)s.stage=choice==1?0:choice-1;save=true;}
-        HelpMarker(T("Auto processes the DLSS output after reconstruction; Resolution Scale Auto keeps its cost in check.\n"
+        HelpMarker(simple
+            ? T("Leave this on Auto unless you know you need another stage.\nOff turns DLSS 5 Neural Rendering off.")
+            : T("Auto processes the DLSS output after reconstruction; Resolution Scale Auto keeps its cost in check.\n"
             "Before upscaling processes the DLSS input at render resolution, before DLSS SR, DLAA or Ray Reconstruction.\n"
             "After upscaling processes the DLSS output after reconstruction.\n"
             "Present processes the final image, game UI included, before presentation and frame generation."));
@@ -2015,35 +2064,39 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
         uint32_t look=static_cast<uint32_t>(dlss5::MatchingLook(s));
         ControlRow(T("Look"));
         if(ChoiceCombo("##dlss5look",look,looks,4,1u<<3) && look<dlss5::kLookCount){dlss5::ApplyLook(s,look);save=true;}
-        HelpMarker(T("Sets Intensity, Model, Structure, Tone and Faces & skin together.\n"
+        HelpMarker(simple
+            ? T("Balanced is the recommended starting look. Subtle is milder; Strong is stronger.")
+            : T("Sets Intensity, Model, Structure, Tone and Faces & skin together.\n"
             "Balanced is the provider's own default, Subtle halves its change and Strong goes further.\n"
             "Pass Count under Advanced strengthens any look further, at extra GPU cost."));
-        ControlRow(T("Intensity"));
-        save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5intensity",&s.intensity,0.0f,1.0f,"%.2f"));
-        HelpMarker(T("Strength of the whole neural rendering effect."));
-        const char* const models[]{T("Model A"),T("Model B"),T("Model C")};
-        ControlRow(T("Model"));
-        save|=ChoiceCombo("##dlss5model",s.model,models,3);
-        ControlRow(T("Faces & skin"));
-        save|=FacesControl("dlss5character",s.character,s.structure,s.characterMask);
-        HelpMarker(!s.characterMask?T("Off while Character Mask is off. Turn it on under Advanced.")
-            :T("Structure enhancement on detected skin and faces.\nSame as Structure takes the Structure strength, the provider's own default."));
-        ControlRow(T("Resolution Scale"));
-        {
-            // Slider and its Auto checkbox share the control column.
-            const ImGuiStyle& style=ImGui::GetStyle();
-            const float box=ImGui::GetFrameHeight()+style.ItemInnerSpacing.x+ImGui::CalcTextSize(T("Auto")).x+style.ItemSpacing.x;
-            ImGui::SetNextItemWidth(std::max(ImGui::GetFontSize()*4.0f,ImGui::CalcItemWidth()-box));
-            save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5scale",&s.scale,0.0f,dlss5::kMaxScale,s.scaleAuto?T("up to %.0f%%"):"%.0f%%"));
-            ImGui::SameLine();ImGui::PushID("dlss5scaleauto");
-            save|=ImGui::Checkbox(l10n::Label("Auto"),&s.scaleAuto);
-            ImGui::PopID();
+        if(!simple){
+            ControlRow(T("Intensity"));
+            save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5intensity",&s.intensity,0.0f,1.0f,"%.2f"));
+            HelpMarker(T("Strength of the whole neural rendering effect."));
+            const char* const models[]{T("Model A"),T("Model B"),T("Model C")};
+            ControlRow(T("Model"));
+            save|=ChoiceCombo("##dlss5model",s.model,models,3);
+            ControlRow(T("Faces & skin"));
+            save|=FacesControl("dlss5character",s.character,s.structure,s.characterMask);
+            HelpMarker(!s.characterMask?T("Off while Character Mask is off. Turn it on under Advanced.")
+                :T("Structure enhancement on detected skin and faces.\nSame as Structure takes the Structure strength, the provider's own default."));
+            ControlRow(T("Resolution Scale"));
+            {
+                // Slider and its Auto checkbox share the control column.
+                const ImGuiStyle& style=ImGui::GetStyle();
+                const float box=ImGui::GetFrameHeight()+style.ItemInnerSpacing.x+ImGui::CalcTextSize(T("Auto")).x+style.ItemSpacing.x;
+                ImGui::SetNextItemWidth(std::max(ImGui::GetFontSize()*4.0f,ImGui::CalcItemWidth()-box));
+                save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5scale",&s.scale,0.0f,dlss5::kMaxScale,s.scaleAuto?T("up to %.0f%%"):"%.0f%%"));
+                ImGui::SameLine();ImGui::PushID("dlss5scaleauto");
+                save|=ImGui::Checkbox(l10n::Label("Auto"),&s.scaleAuto);
+                ImGui::PopID();
+            }
+            HelpMarker(T("Share of the hook method's resolution that the network processes.\n"
+                "100 is native, lower is faster, up to 200 supersamples. Values below 25 use 25.\n"
+                "Auto lowers it when DLSS 5 takes more than about a third of each rendered frame, not below 75, and raises it again with headroom, never above the slider."));
         }
-        HelpMarker(T("Share of the hook method's resolution that the network processes.\n"
-            "100 is native, lower is faster, up to 200 supersamples. Values below 25 use 25.\n"
-            "Auto lowers it when DLSS 5 takes more than about a third of each rendered frame, not below 75, and raises it again with headroom, never above the slider."));
         // Boost runs on D3D12 Before and After upscaling; elsewhere it stays in place, disabled.
-        // Offered while dlss5::kHalfRateOffered (halfgrid.1).
+        // Offered while dlss5::kHalfRateOffered (halfgrid.1). Useful on RTX 20 in Simple mode.
         if constexpr(dlss5::kHalfRateOffered){
             const bool boostUnavailable=snapshot.graphicsApi==2u || (s.enabled && s.stage==static_cast<uint32_t>(dlss5::Stage::ePresent));
             ControlRow(T("Half rate"));
@@ -2051,11 +2104,15 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
             save|=ImGui::Checkbox("##dlss5boost",&s.boost);
             ImGui::EndDisabled();
             HelpMarker(boostUnavailable?T("Half rate is not available on Vulkan or with the Present hook method yet.")
-                :T("Runs the network on every other frame. The frames between apply its last look to their own image, so moving and animated surfaces keep it without trails.\n"
+                : simple
+                ? T("Tick this on an RTX 2060 if DLSS 5 costs too much FPS. About half the GPU cost.")
+                : T("Runs the network on every other frame. The frames between apply its last look to their own image, so moving and animated surfaces keep it without trails.\n"
                     "About half the GPU cost. Fine detail follows the game's motion vectors where a surface only moved."));
         }
         ImGui::EndTable();
     }
+    if(simple)
+        Note(Tone::Dim,"%s",T("Intensity, Resolution Scale, Compare and Advanced stay in Full menu Detail."));
     // Notes for the controls above; the save result is the previous frame's.
     if(gDlss5SaveFailed)Note(Tone::Bad,"%s",T("DLSS 5 settings could not be saved."));
     // A saved Before upscaling or Present on a Vulkan game stays selected and leaves the frame as is.
@@ -2065,25 +2122,27 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
         Note(Tone::Pending,"%s",T("Before upscaling and Present do not run on Vulkan yet. Choose Auto or After upscaling."));
     else if(snapshot.dlss5State==static_cast<uint32_t>(dlss5::State::eStageUnavailable))
         Note(Tone::Dim,"%s",T("This game's swapchain cannot use the Present hook method; the log names the reason. Before or after upscaling still work."));
-    if(s.enabled && s.debugView!=static_cast<uint32_t>(dlss5::DebugView::eOff))
+    if(!simple && s.enabled && s.debugView!=static_cast<uint32_t>(dlss5::DebugView::eOff))
         Note(Tone::Pending,"%s",T("Debug view is on (Advanced, Inspect)."));
 
     // Compare is not part of the look: Reset to defaults keeps it.
-    Section(T("Compare"));
-    if(BeginGrid("##dlss5compare")){
-        ControlRow(T("Split view"));
-        save|=ImGui::Checkbox("##dlss5compare",&s.compare);
-        HelpMarker(T("Shows the original image left of the line and DLSS 5 to its right.\n"
-            "Before upscaling draws no line, because the upscaler would treat it as part of the image."));
-        ControlRow(T("Split position"));
-        ImGui::BeginDisabled(!s.compare);
-        save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5split",&s.compareSplit,dlss5::kMinCompareSplit,dlss5::kMaxCompareSplit,"%.0f%%"));
-        ImGui::EndDisabled();
-        ControlRow(T("Hold to show original"));
-        save|=CompareKeyControl(s);
-        HelpMarker(T("While this key is held, the game shows its original image, so DLSS 5 can be compared in motion.\n"
-            "DLSS 5 keeps running, so its GPU cost is unchanged, and the key still reaches the game."));
-        ImGui::EndTable();
+    if(!simple){
+        Section(T("Compare"));
+        if(BeginGrid("##dlss5compare")){
+            ControlRow(T("Split view"));
+            save|=ImGui::Checkbox("##dlss5compare",&s.compare);
+            HelpMarker(T("Shows the original image left of the line and DLSS 5 to its right.\n"
+                "Before upscaling draws no line, because the upscaler would treat it as part of the image."));
+            ControlRow(T("Split position"));
+            ImGui::BeginDisabled(!s.compare);
+            save|=Dlss5SliderSave(ImGui::SliderFloat("##dlss5split",&s.compareSplit,dlss5::kMinCompareSplit,dlss5::kMaxCompareSplit,"%.0f%%"));
+            ImGui::EndDisabled();
+            ControlRow(T("Hold to show original"));
+            save|=CompareKeyControl(s);
+            HelpMarker(T("While this key is held, the game shows its original image, so DLSS 5 can be compared in motion.\n"
+                "DLSS 5 keeps running, so its GPU cost is unchanged, and the key still reaches the game."));
+            ImGui::EndTable();
+        }
     }
 
     Section(T("Status"));
@@ -2105,14 +2164,14 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
                 HelpMarker(T("every other frame, when the network runs"));
             }
         }
-        if(s.enabled && s.scaleAuto && snapshot.dlss5Route && snapshot.dlss5EffectiveScale>0.0f){
+        if(!simple && s.enabled && s.scaleAuto && snapshot.dlss5Route && snapshot.dlss5EffectiveScale>0.0f){
             char value[32]{},detail[96]{};
             snprintf(value,sizeof(value),"%.0f%%",snapshot.dlss5EffectiveScale);
             if(snapshot.dlss5GpuMs>=0.0f)snprintf(detail,sizeof(detail),T("%.1f of %.1f ms"),snapshot.dlss5GpuMs,snapshot.dlss5BudgetMs);
             else snprintf(detail,sizeof(detail),"%s",T("measuring"));
             StatusDetail(T("Auto scale"),Tone::Normal,value,detail);
         }
-        if(snapshot.dlss5Route){
+        if(!simple && snapshot.dlss5Route){
             char detail[160]{};
             snprintf(detail,sizeof(detail),T("%ux%u, network %ux%u, passes: %u"),snapshot.dlss5Width,snapshot.dlss5Height,
                 snapshot.dlss5ExtentWidth,snapshot.dlss5ExtentHeight,snapshot.dlss5Passes);
@@ -2142,7 +2201,8 @@ void DrawDlss5(const MfgUnlockReShadeSnapshot& snapshot,bool stale)
         Note(Tone::Pending,"%s",T("The Present stage does not run with XeMFG standalone. Choose Auto or an upscaling stage."));
 
     // Closed by default; ImGui keeps it open or closed for the session.
-    if(ImGui::CollapsingHeader(l10n::Label("Advanced"))){
+    // Hidden in beginner Simple mode; saved Advanced values still apply.
+    if(!simple && ImGui::CollapsingHeader(l10n::Label("Advanced"))){
         Section(T("Look"));
         if(BeginGrid("##dlss5look")){
             ControlRow(T("Structure Intensity"));
@@ -2870,16 +2930,16 @@ void GpuNameControlRow()
         gGpuName.saveFailed = !gpu_name_override::Save(unlock);
         if (!gGpuName.saveFailed) gGpuName.saved = unlock;
     }
-    std::string gpuHint = T("For games that hide DLSS Frame Generation on RTX 30 cards, such as Wuthering Waves.\n"
-        "The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
-        "keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
-        "Online games with anti cheat may treat any mod as a risk. Applies after a game restart.");
-    if (gGpuFamily.load(std::memory_order_acquire) == 4u)
-    {
-        const auto at = gpuHint.find("RTX 30");
-        if (at != std::string::npos) gpuHint.replace(at, 6, "RTX 20");
-    }
-    HelpMarker(gpuHint.c_str());
+    const bool turing = gGpuFamily.load(std::memory_order_acquire) == 4u;
+    HelpMarker(turing
+        ? T("For games that hide DLSS Frame Generation on RTX 20 cards, such as Wuthering Waves.\n"
+            "The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
+            "keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
+            "Online games with anti cheat may treat any mod as a risk. Applies after a game restart.")
+        : T("For games that hide DLSS Frame Generation on RTX 30 cards, such as Wuthering Waves.\n"
+            "The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
+            "keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
+            "Online games with anti cheat may treat any mod as a risk. Applies after a game restart."));
 }
 
 void GpuNameNotes()
@@ -2896,7 +2956,7 @@ void GpuNameNotes()
     else if (state.enabled && state.reported)
         Note(Tone::Dim, T("The game sees an NVIDIA GeForce RTX 4090 this session."));
     else if (state.enabled && state.unchanged)
-        Note(Tone::Dim, T("This GPU is not an RTX 30 card; the game sees its real name."));
+        Note(Tone::Dim, T("This GPU is not an RTX 20 or RTX 30 card; the game sees its real name."));
 }
 
 // XeSS frame generation: status only. beta.8: XeSS MFG runs under OptiScaler, whose menu owns its
@@ -3235,20 +3295,23 @@ void DrawXessPanel(const MfgUnlockReShadeSnapshot& snapshot, bool statusStale)
         ImGui::EndTable();
     }
     if (x.available && x.optiScaler && !x.status.empty()) Note(Tone::Dim, "%s", x.status.c_str());
-    DrawWitcherHair();
+    if (!SimpleMenuActive()) DrawWitcherHair();
 
-    Section(T("Advanced"));
-    if (x.available && ImGui::CollapsingHeader(l10n::Label("XeSS diagnostics")))
+    if (!SimpleMenuActive())
     {
-        ImGui::Text("OptiScaler %s | hooks %s | initialized %s | enabled %s",
-            x.optiScaler ? "detected" : "not detected", x.hooksActive ? "active" : "waiting",
-            x.initialized ? "yes" : "no", x.enabled ? "yes" : "no");
-        ImGui::Text("Provider frames %u | model %u", x.framesPresented, x.modelActive);
-        ImGui::Text("Tensor cores %u | launches %u | fallbacks %u%s%s", x.tensorCores, x.tensorCoreLaunches,
-            x.tensorCoreFallbacks, x.tensorCoreReason.empty() ? "" : " | ", x.tensorCoreReason.c_str());
-        if (!x.runtimeFailure.empty()) ImGui::TextWrapped("Runtime: %s", x.runtimeFailure.c_str());
+        Section(T("Advanced"));
+        if (x.available && ImGui::CollapsingHeader(l10n::Label("XeSS diagnostics")))
+        {
+            ImGui::Text("OptiScaler %s | hooks %s | initialized %s | enabled %s",
+                x.optiScaler ? "detected" : "not detected", x.hooksActive ? "active" : "waiting",
+                x.initialized ? "yes" : "no", x.enabled ? "yes" : "no");
+            ImGui::Text("Provider frames %u | model %u", x.framesPresented, x.modelActive);
+            ImGui::Text("Tensor cores %u | launches %u | fallbacks %u%s%s", x.tensorCores, x.tensorCoreLaunches,
+                x.tensorCoreFallbacks, x.tensorCoreReason.empty() ? "" : " | ", x.tensorCoreReason.c_str());
+            if (!x.runtimeFailure.empty()) ImGui::TextWrapped("Runtime: %s", x.runtimeFailure.c_str());
+        }
+        DrawWitcherHairDiagnostics();
     }
-    DrawWitcherHairDiagnostics();
 }
 
 // OptiScaler's shared UI mode (the default again since alpha.19): its menu owns
@@ -3354,6 +3417,7 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
         SetFooter(statusStale ? N_("Paused") : N_("Live"), statusStale ? Tone::Pending : Tone::Good);
     else
         SetFooter("", Tone::Dim);
+    DrawSimpleMenuBar();
     if (nativeFile && snapshot.optiScalerUiOwner == 1u)
     {
         DrawOptiScalerShared(snapshot, statusStale);
@@ -3438,6 +3502,7 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
             "The current status protocol is older than this UI expects."));
 
     // DLSS 5 (standalone native control) has its own tab while its provider is present; without it, no tab bar.
+    const bool simple = SimpleMenuActive();
     const bool tabs = BackendUsesNativeFile() && Dlss5TabShown(snapshot) && BeginTabs("##mfgtabs");
     if (!tabs || TabItem(T("Frame generation")))
     {
@@ -3449,6 +3514,8 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
         {
             // Capability can disappear in menus and during map transitions. Rendering
             // that state must not overwrite the user's persisted Dynamic request.
+            // Simple mode lists Follow game and 2x-4x; a saved Dynamic or 5x/6x
+            // selection stays visible so it can be changed down.
             if (UiAmpere())
             {
                 gDynamicExperimental56 = false;
@@ -3463,7 +3530,8 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                 {
                     if (ImGui::Selectable(T("Follow game"), gFollowGameMode))
                     { gFollowGameMode = true; gDynamicMode = false; settingsChanged = true; }
-                    for (int value = 1; value <= 6; ++value)
+                    const int listedMaximum = simple ? std::min(4, safeMaximumMultiplier) : 6;
+                    for (int value = 1; value <= listedMaximum; ++value)
                     {
                         ImGui::BeginDisabled(value > safeMaximumMultiplier);
                         if (ImGui::Selectable(T(ampereModes[value - 1]), !gFollowGameMode && !gDynamicMode && gMultiplier == value)
@@ -3471,10 +3539,26 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                         { gFollowGameMode = false; gMultiplier = value; gDynamicMode = false; settingsChanged = true; }
                         ImGui::EndDisabled();
                     }
-                    ImGui::BeginDisabled(!dynamicSupported);
-                    if (ImGui::Selectable(dynamicLabel, gDynamicMode) && dynamicSupported)
-                    { gFollowGameMode = false; gMultiplier = std::max(gMultiplier, 2); gDynamicMode = true; settingsChanged = true; }
-                    ImGui::EndDisabled();
+                    if (!simple)
+                    {
+                        for (int value = listedMaximum + 1; value <= 6; ++value)
+                        {
+                            ImGui::BeginDisabled(value > safeMaximumMultiplier);
+                            if (ImGui::Selectable(T(ampereModes[value - 1]), !gFollowGameMode && !gDynamicMode && gMultiplier == value)
+                                && value <= safeMaximumMultiplier)
+                            { gFollowGameMode = false; gMultiplier = value; gDynamicMode = false; settingsChanged = true; }
+                            ImGui::EndDisabled();
+                        }
+                    }
+                    else if (!gFollowGameMode && !gDynamicMode && gMultiplier > listedMaximum)
+                        ImGui::Selectable(T(ampereModes[std::clamp(gMultiplier, 1, 6) - 1]), true);
+                    if (!simple || gDynamicMode)
+                    {
+                        ImGui::BeginDisabled(!dynamicSupported);
+                        if (ImGui::Selectable(dynamicLabel, gDynamicMode) && dynamicSupported)
+                        { gFollowGameMode = false; gMultiplier = std::max(gMultiplier, 2); gDynamicMode = true; settingsChanged = true; }
+                        ImGui::EndDisabled();
+                    }
                     ImGui::EndCombo();
                 }
             }
@@ -3502,7 +3586,8 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                     const int listedMaximum = snapshot.nvidiaPolicyCeilingMultiplier >= 2
                         && snapshot.nvidiaPolicyCeilingMultiplier <= 6
                         ? static_cast<int>(snapshot.nvidiaPolicyCeilingMultiplier) : safeMaximumMultiplier;
-                    for (int multiplier = 2; multiplier <= listedMaximum;
+                    const int simpleMaximum = simple ? std::min(4, listedMaximum) : listedMaximum;
+                    for (int multiplier = 2; multiplier <= simpleMaximum;
                          ++multiplier)
                     {
                         const bool selected = !gFollowGameMode && !gDynamicMode
@@ -3518,22 +3603,49 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                         }
                         ImGui::EndDisabled();
                     }
-                    ImGui::BeginDisabled(!dynamicSupported);
-                    if (ImGui::Selectable(dynamicLabel, gDynamicMode)
-                        && dynamicSupported)
+                    if (!simple)
                     {
-                        gFollowGameMode = false;
-                        gDynamicMode = true;
-                        settingsChanged = true;
+                        for (int multiplier = simpleMaximum + 1; multiplier <= listedMaximum; ++multiplier)
+                        {
+                            const bool selected = !gFollowGameMode && !gDynamicMode
+                                && gMultiplier == multiplier;
+                            ImGui::BeginDisabled(multiplier > safeMaximumMultiplier);
+                            if (ImGui::Selectable(fixedModes[multiplier - 2], selected)
+                                && multiplier <= safeMaximumMultiplier)
+                            {
+                                gFollowGameMode = false;
+                                gDynamicMode = false;
+                                gMultiplier = multiplier;
+                                settingsChanged = true;
+                            }
+                            ImGui::EndDisabled();
+                        }
                     }
-                    ImGui::EndDisabled();
+                    else if (!gFollowGameMode && !gDynamicMode && gMultiplier > simpleMaximum
+                        && gMultiplier >= 2 && gMultiplier <= 6)
+                        ImGui::Selectable(fixedModes[gMultiplier - 2], true);
+                    if (!simple || gDynamicMode)
+                    {
+                        ImGui::BeginDisabled(!dynamicSupported);
+                        if (ImGui::Selectable(dynamicLabel, gDynamicMode)
+                            && dynamicSupported)
+                        {
+                            gFollowGameMode = false;
+                            gDynamicMode = true;
+                            settingsChanged = true;
+                        }
+                        ImGui::EndDisabled();
+                    }
                     ImGui::EndCombo();
                 }
                 ImGui::EndDisabled();
             }
-            HelpMarker(T("Follow game uses the game's own frame generation setting.\n"
+            HelpMarker(simple
+                ? T("Follow game keeps the game's own Frame Generation setting.\n"
+                    "On an RTX 2060 start with 2x FG or 3x MFG. Higher multipliers need more GPU headroom.")
+                : T("Follow game uses the game's own frame generation setting.\n"
                 "Dynamic adjusts frame generation toward a target frame rate; it does not set a hard FPS limit."));
-            if (!gFollowGameMode && gDynamicMode)
+            if (!simple && !gFollowGameMode && gDynamicMode)
             {
                 ImGui::BeginDisabled(!dynamicSupported);
                 ControlRow(T("Dynamic target"));
@@ -3548,13 +3660,13 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                 }
                 ImGui::EndDisabled();
             }
-            PresetControlRow(presetView, statusStale);
+            if (!simple) PresetControlRow(presetView, statusStale);
             GpuNameControlRow();
             // xemfgsa.1: switched on, the XeSS panel with XeMFG's own rows replaces this one.
-            if (XemfgAvailable()) XemfgControlRows();
+            if (!simple && XemfgAvailable()) XemfgControlRows();
             ImGui::EndTable();
         }
-        XemfgNotes();
+        if (!simple) XemfgNotes();
         // Notes for the controls above: what frame generation waits for, then
         // how the selection applies. The game-off note replaces the generic waits.
         const bool gameFgOffNoted = FrameGenerationOffNote(snapshot);
@@ -3580,7 +3692,7 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
             Note(Tone::Pending, T("Toggle frame generation off then on, or restart "
                 "the game, to recreate the pipeline with this selection."));
         }
-        if (!UiAmpere())
+        if (!simple && !UiAmpere())
         {
             if (dynamicUnsupported)
                 Note(Tone::Dim, T("Dynamic MFG is unavailable with the current limit or runtime. "
@@ -3599,28 +3711,31 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
             else
                 Note(Tone::Bad, T("The selection could not be applied or saved."));
         }
-        PresetNotes(presetView);
+        if (!simple) PresetNotes(presetView);
         GpuNameNotes();
 
-        Section(T("Latency and display"));
-        if (BeginGrid("##dlsslatency"))
-        {
-            PresentationControlRows(snapshot, statusStale);
-            ImGui::EndTable();
-        }
-        PresentationNotes(snapshot);
-
-        // Ray Reconstruction replaces Super Resolution in the game, so their
-        // controls share one section.
         const bool rayReconstructionShown = RayReconstructionShown(snapshot);
         const MfgUnlockDlssFeature& dlssView = rayReconstructionShown ? snapshot.dlssRr : snapshot.dlssSr;
-        Section(rayReconstructionShown ? T("DLSS Ray Reconstruction") : T("DLSS Super Resolution"));
-        if (BeginGrid("##dlsssr"))
+        if (!simple)
         {
-            DlssPresetControlRow(dlssView, rayReconstructionShown, statusStale);
-            ImGui::EndTable();
+            Section(T("Latency and display"));
+            if (BeginGrid("##dlsslatency"))
+            {
+                PresentationControlRows(snapshot, statusStale);
+                ImGui::EndTable();
+            }
+            PresentationNotes(snapshot);
+
+            // Ray Reconstruction replaces Super Resolution in the game, so their
+            // controls share one section.
+            Section(rayReconstructionShown ? T("DLSS Ray Reconstruction") : T("DLSS Super Resolution"));
+            if (BeginGrid("##dlsssr"))
+            {
+                DlssPresetControlRow(dlssView, rayReconstructionShown, statusStale);
+                ImGui::EndTable();
+            }
+            DlssNotes(dlssView, rayReconstructionShown);
         }
-        DlssNotes(dlssView, rayReconstructionShown);
         ImGui::EndDisabled();
 
         // Every readback in one grid, in the order of the controls above.
@@ -3646,51 +3761,54 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                     snapshot.appliedMultiplier);
                 StatusRow(T("Applied"), snapshot.appliedFrameGenerationOn ? Tone::Good : Tone::Normal, "%s", value);
             }
-            const char* nvidiaList = !snapshot.nvidiaCompatibilityResolved ? T("NVIDIA list unavailable")
-                : snapshot.nvidiaCompatibilityTier == 2 ? T("NVIDIA lists no MFG for this game")
-                : snapshot.nvidiaCompatibilityTier != 4 && snapshot.nvidiaCompatibilityTier != 6
-                    ? T("game not on NVIDIA's list") : nullptr;
-            if (!nvidiaList)
+            if (!simple)
             {
-                snprintf(detail, sizeof(detail), T("NVIDIA lists %ux"), snapshot.nvidiaCompatibilityTier);
-                nvidiaList = detail;
-            }
-            if (wrapperControlUnavailable)
-                StatusDetail(T("Limit"), Tone::Bad, T("Unavailable"), T("the current wrapper has no verified MFG override"));
-            else if (snapshot.activeWrapperObserved)
-            {
-                snprintf(value, sizeof(value), snapshot.compatibilityFallback ? T("%dx (safe fallback)") : "%dx",
-                    safeMaximumMultiplier);
-                StatusDetail(T("Limit"), Tone::Normal, value, nvidiaList);
-            }
-            else
-                StatusDetail(T("Limit"), Tone::Pending, T("Waiting"), T("for an active DLSS-G wrapper"));
-            char limitHelp[256]{};
-            if (snapshot.nvidiaCompatibilityTier == 2)
-                snprintf(limitHelp, sizeof(limitHelp), "%s",
-                    T("NVIDIA lists ordinary Frame Generation only. The mod keeps its override limit at 2x."));
-            else if (snapshot.nvidiaPolicyCeilingMultiplier > static_cast<uint32_t>(safeMaximumMultiplier))
-                snprintf(limitHelp, sizeof(limitHelp),
-                    T("The listed %ux ceiling requires a compatible runtime. The current limit is %dx."),
-                    snapshot.nvidiaPolicyCeilingMultiplier, safeMaximumMultiplier);
-            else
-                snprintf(limitHelp, sizeof(limitHelp), "%s",
-                    T("The highest mode the current DLSS-G runtime supports, and the ceiling\n"
-                    "NVIDIA's override list gives this game."));
-            HelpMarker(limitHelp);
-            if (!gFollowGameMode && gDynamicMode)
-            {
-                if (gDynamicLockToRefreshRate) snprintf(value, sizeof(value), "%s", T("Display refresh rate"));
-                else snprintf(value, sizeof(value), "%d FPS", gDynamicCustomTargetFrameRate);
-                if (!snapshot.appliedDynamicTargetValid)
-                    StatusDetail(T("Dynamic target"), Tone::Pending, value, T("waiting for an accepted Dynamic request"));
-                else
+                const char* nvidiaList = !snapshot.nvidiaCompatibilityResolved ? T("NVIDIA list unavailable")
+                    : snapshot.nvidiaCompatibilityTier == 2 ? T("NVIDIA lists no MFG for this game")
+                    : snapshot.nvidiaCompatibilityTier != 4 && snapshot.nvidiaCompatibilityTier != 6
+                        ? T("game not on NVIDIA's list") : nullptr;
+                if (!nvidiaList)
                 {
-                    if (snapshot.appliedDynamicTargetFrameRate == 0.0f)
-                        snprintf(detail, sizeof(detail), "%s", T("applied: display refresh rate"));
+                    snprintf(detail, sizeof(detail), T("NVIDIA lists %ux"), snapshot.nvidiaCompatibilityTier);
+                    nvidiaList = detail;
+                }
+                if (wrapperControlUnavailable)
+                    StatusDetail(T("Limit"), Tone::Bad, T("Unavailable"), T("the current wrapper has no verified MFG override"));
+                else if (snapshot.activeWrapperObserved)
+                {
+                    snprintf(value, sizeof(value), snapshot.compatibilityFallback ? T("%dx (safe fallback)") : "%dx",
+                        safeMaximumMultiplier);
+                    StatusDetail(T("Limit"), Tone::Normal, value, nvidiaList);
+                }
+                else
+                    StatusDetail(T("Limit"), Tone::Pending, T("Waiting"), T("for an active DLSS-G wrapper"));
+                char limitHelp[256]{};
+                if (snapshot.nvidiaCompatibilityTier == 2)
+                    snprintf(limitHelp, sizeof(limitHelp), "%s",
+                        T("NVIDIA lists ordinary Frame Generation only. The mod keeps its override limit at 2x."));
+                else if (snapshot.nvidiaPolicyCeilingMultiplier > static_cast<uint32_t>(safeMaximumMultiplier))
+                    snprintf(limitHelp, sizeof(limitHelp),
+                        T("The listed %ux ceiling requires a compatible runtime. The current limit is %dx."),
+                        snapshot.nvidiaPolicyCeilingMultiplier, safeMaximumMultiplier);
+                else
+                    snprintf(limitHelp, sizeof(limitHelp), "%s",
+                        T("The highest mode the current DLSS-G runtime supports, and the ceiling\n"
+                        "NVIDIA's override list gives this game."));
+                HelpMarker(limitHelp);
+                if (!gFollowGameMode && gDynamicMode)
+                {
+                    if (gDynamicLockToRefreshRate) snprintf(value, sizeof(value), "%s", T("Display refresh rate"));
+                    else snprintf(value, sizeof(value), "%d FPS", gDynamicCustomTargetFrameRate);
+                    if (!snapshot.appliedDynamicTargetValid)
+                        StatusDetail(T("Dynamic target"), Tone::Pending, value, T("waiting for an accepted Dynamic request"));
                     else
-                        snprintf(detail, sizeof(detail), T("applied: %.2f FPS"), snapshot.appliedDynamicTargetFrameRate);
-                    StatusDetail(T("Dynamic target"), Tone::Good, value, detail);
+                    {
+                        if (snapshot.appliedDynamicTargetFrameRate == 0.0f)
+                            snprintf(detail, sizeof(detail), "%s", T("applied: display refresh rate"));
+                        else
+                            snprintf(detail, sizeof(detail), T("applied: %.2f FPS"), snapshot.appliedDynamicTargetFrameRate);
+                        StatusDetail(T("Dynamic target"), Tone::Good, value, detail);
+                    }
                 }
             }
             const bool fpsSampleCurrent = snapshot.realFpsMilli > 0
@@ -3717,15 +3835,18 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                 StatusRow("FPS", Tone::Dim, "%s", T("DLSS FG off"));
                 PinnedFpsToggle();
             }
-            PresetStatusRow(presetView);
-            PresentationStatusRows(snapshot, statusStale);
-            DlssStatusRows(dlssView, rayReconstructionShown);
+            if (!simple)
+            {
+                PresetStatusRow(presetView);
+                PresentationStatusRows(snapshot, statusStale);
+                DlssStatusRows(dlssView, rayReconstructionShown);
+            }
             ImGui::EndTable();
         }
-        DrawWitcherHair();
+        if (!simple) DrawWitcherHair();
 
-        Section(T("Advanced"));
-        if (ImGui::CollapsingHeader(l10n::Label("Diagnostics")))
+        if (!simple) Section(T("Advanced"));
+        if (!simple && ImGui::CollapsingHeader(l10n::Label("Diagnostics")))
         {
             if (!UiAmpere())
             {
@@ -3913,7 +4034,7 @@ void DrawSettings(reshade::api::effect_runtime* runtime)
                 ImGui::SetTooltip("DLSS-G UI recomposition is left to the game; RTXMFG never enables it.\n"
                     "An NVIDIA frame generation preset can still turn it on in the driver.");
         }
-        DrawWitcherHairDiagnostics();
+        if (!simple) DrawWitcherHairDiagnostics();
         if (tabs) ImGui::EndTabItem();
     }
     if (tabs)
@@ -3942,11 +4063,19 @@ void Initialize(HMODULE self)
         const auto path = SettingsPath("RTX40MFG-UI.ini");
         gPinnedFps.store(!path.empty() && GetPrivateProfileIntW(L"Overlay", L"PinnedFps", 0, path.c_str()) == 1,
             std::memory_order_release);
+        // Missing key defaults to Simple (1) so beginners land on the short menu.
+        gSimpleMenu.store(path.empty()
+            || GetPrivateProfileIntW(L"Overlay", L"SimpleMenu", 1, path.c_str()) != 0,
+            std::memory_order_release);
     }
 }
 bool PinnedFps()
 {
     return gPinnedFps.load(std::memory_order_acquire);
+}
+bool SimpleMenu() noexcept
+{
+    return SimpleMenuActive();
 }
 void Draw()
 {

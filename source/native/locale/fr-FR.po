@@ -268,6 +268,33 @@ msgstr "Aucune touche"
 msgid "Clear"
 msgstr "Effacer"
 
+msgid "Menu"
+msgstr ""
+
+msgid "Detail"
+msgstr ""
+
+msgid "Simple"
+msgstr ""
+
+msgid "Full"
+msgstr ""
+
+msgid ""
+"Simple keeps the controls most players need: unlock Frame Generation,\n"
+"pick an MFG multiplier, and turn on DLSS 5 Neural Rendering.\n"
+"Full shows every option, including XeMFG, presets, latency and diagnostics."
+msgstr ""
+
+msgid "RTX 20 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick 2x or 3x, then open DLSS 5 for Neural Rendering."
+msgstr ""
+
+msgid "RTX 30 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick a multiplier, then open DLSS 5 for Neural Rendering."
+msgstr ""
+
+msgid "Quick start: turn Frame Generation on in the game, pick a multiplier here, then open DLSS 5 for Neural Rendering when nvngx_dlssnr.dll is present."
+msgstr ""
+
 msgid "Off"
 msgstr "Désactivé"
 
@@ -298,6 +325,9 @@ msgstr "En attente du DLSS"
 msgid "Neural Rendering"
 msgstr "Rendu neuronal"
 
+msgid "Place NVIDIA's nvngx_dlssnr.dll beside the game executable. It must be a build that supports your GPU (RTX 20 included)."
+msgstr ""
+
 msgid "Before upscaling (faster)"
 msgstr "Avant la mise à l'échelle (plus rapide)"
 
@@ -312,6 +342,11 @@ msgstr "Auto : %s"
 
 msgid "Hook Method"
 msgstr "Méthode d'accroche"
+
+msgid ""
+"Leave this on Auto unless you know you need another stage.\n"
+"Off turns DLSS 5 Neural Rendering off."
+msgstr ""
 
 msgid ""
 "Auto processes the DLSS output after reconstruction; Resolution Scale Auto keeps its cost in check.\n"
@@ -335,6 +370,9 @@ msgstr "Personnalisé"
 
 msgid "Look"
 msgstr "Rendu"
+
+msgid "Balanced is the recommended starting look. Subtle is milder; Strong is stronger."
+msgstr ""
 
 msgid ""
 "Sets Intensity, Model, Structure, Tone and Faces & skin together.\n"
@@ -400,12 +438,18 @@ msgstr "Demi-cadence"
 msgid "Half rate is not available on Vulkan or with the Present hook method yet."
 msgstr "La demi-cadence n'est pas encore disponible sous Vulkan ni avec la méthode d'accroche Présentation."
 
+msgid "Tick this on an RTX 2060 if DLSS 5 costs too much FPS. About half the GPU cost."
+msgstr ""
+
 msgid ""
 "Runs the network on every other frame. The frames between apply its last look to their own image, so moving and animated surfaces keep it without trails.\n"
 "About half the GPU cost. Fine detail follows the game's motion vectors where a surface only moved."
 msgstr ""
 "Exécute le réseau une image sur deux. Les images intermédiaires appliquent son dernier rendu à leur propre image, si bien que les surfaces en mouvement et animées le gardent sans traînées.\n"
 "Environ la moitié du coût GPU. Les détails fins suivent les vecteurs de mouvement du jeu là où une surface s'est seulement déplacée."
+
+msgid "Intensity, Resolution Scale, Compare and Advanced stay in Full menu Detail."
+msgstr ""
 
 msgid "DLSS 5 settings could not be saved."
 msgstr "Les réglages DLSS 5 n'ont pas pu être enregistrés."
@@ -1064,6 +1108,13 @@ msgid "Unlock"
 msgstr "Débloquer"
 
 msgid ""
+"For games that hide DLSS Frame Generation on RTX 20 cards, such as Wuthering Waves.\n"
+"The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
+"keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
+"Online games with anti cheat may treat any mod as a risk. Applies after a game restart."
+msgstr ""
+
+msgid ""
 "For games that hide DLSS Frame Generation on RTX 30 cards, such as Wuthering Waves.\n"
 "The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
 "keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
@@ -1089,8 +1140,8 @@ msgstr "L'option FG du jeu n'a pas pu être appliquée dans cette session. Consu
 msgid "The game sees an NVIDIA GeForce RTX 4090 this session."
 msgstr "Dans cette session, le jeu voit une NVIDIA GeForce RTX 4090."
 
-msgid "This GPU is not an RTX 30 card; the game sees its real name."
-msgstr "Ce GPU n'est pas une carte RTX 30 ; le jeu voit son vrai nom."
+msgid "This GPU is not an RTX 20 or RTX 30 card; the game sees its real name."
+msgstr ""
 
 msgid "XeMFG standalone"
 msgstr "XeMFG autonome"
@@ -1356,6 +1407,11 @@ msgid "Mode"
 msgstr "Mode"
 
 msgid ""
+"Follow game keeps the game's own Frame Generation setting.\n"
+"On an RTX 2060 start with 2x FG or 3x MFG. Higher multipliers need more GPU headroom."
+msgstr ""
+
+msgid ""
 "Follow game uses the game's own frame generation setting.\n"
 "Dynamic adjusts frame generation toward a target frame rate; it does not set a hard FPS limit."
 msgstr ""
@@ -1580,3 +1636,6 @@ msgstr "Dynamique (vérification...)"
 
 #~ msgid "Faces & skin takes the Structure strength, the provider's own default."
 #~ msgstr "Visages et peau reprennent l'intensité de la structure, le réglage par défaut du fournisseur."
+
+#~ msgid "This GPU is not an RTX 30 card; the game sees its real name."
+#~ msgstr "Ce GPU n'est pas une carte RTX 30 ; le jeu voit son vrai nom."

@@ -267,6 +267,34 @@ msgstr "未设置"
 msgid "Clear"
 msgstr "清除"
 
+msgid "Menu"
+msgstr ""
+
+msgid "Detail"
+msgstr ""
+
+msgid "Simple"
+msgstr ""
+
+#, fuzzy
+msgid "Full"
+msgstr "完整"
+
+msgid ""
+"Simple keeps the controls most players need: unlock Frame Generation,\n"
+"pick an MFG multiplier, and turn on DLSS 5 Neural Rendering.\n"
+"Full shows every option, including XeMFG, presets, latency and diagnostics."
+msgstr ""
+
+msgid "RTX 20 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick 2x or 3x, then open DLSS 5 for Neural Rendering."
+msgstr ""
+
+msgid "RTX 30 quick start: Unlock Game FG if the game hides it, restart, turn Frame Generation on in the game, pick a multiplier, then open DLSS 5 for Neural Rendering."
+msgstr ""
+
+msgid "Quick start: turn Frame Generation on in the game, pick a multiplier here, then open DLSS 5 for Neural Rendering when nvngx_dlssnr.dll is present."
+msgstr ""
+
 msgid "Off"
 msgstr "关闭"
 
@@ -297,6 +325,9 @@ msgstr "等待 DLSS"
 msgid "Neural Rendering"
 msgstr "神经渲染"
 
+msgid "Place NVIDIA's nvngx_dlssnr.dll beside the game executable. It must be a build that supports your GPU (RTX 20 included)."
+msgstr ""
+
 msgid "Before upscaling (faster)"
 msgstr "放大前（更快）"
 
@@ -311,6 +342,11 @@ msgstr "自动：%s"
 
 msgid "Hook Method"
 msgstr "挂接方式"
+
+msgid ""
+"Leave this on Auto unless you know you need another stage.\n"
+"Off turns DLSS 5 Neural Rendering off."
+msgstr ""
 
 msgid ""
 "Auto processes the DLSS output after reconstruction; Resolution Scale Auto keeps its cost in check.\n"
@@ -334,6 +370,9 @@ msgstr "自定义"
 
 msgid "Look"
 msgstr "外观"
+
+msgid "Balanced is the recommended starting look. Subtle is milder; Strong is stronger."
+msgstr ""
 
 msgid ""
 "Sets Intensity, Model, Structure, Tone and Faces & skin together.\n"
@@ -399,12 +438,18 @@ msgstr "半速率"
 msgid "Half rate is not available on Vulkan or with the Present hook method yet."
 msgstr "半速率暂不支持 Vulkan 或“呈现”挂接方式。"
 
+msgid "Tick this on an RTX 2060 if DLSS 5 costs too much FPS. About half the GPU cost."
+msgstr ""
+
 msgid ""
 "Runs the network on every other frame. The frames between apply its last look to their own image, so moving and animated surfaces keep it without trails.\n"
 "About half the GPU cost. Fine detail follows the game's motion vectors where a surface only moved."
 msgstr ""
 "每隔一帧运行一次网络。中间帧会将其最近的效果应用到自身画面上，因此移动和动态表面也能保留效果，且不会拖影。\n"
 "约为一半的 GPU 开销。在表面仅发生移动的地方，细节会沿游戏的运动矢量延续。"
+
+msgid "Intensity, Resolution Scale, Compare and Advanced stay in Full menu Detail."
+msgstr ""
 
 msgid "DLSS 5 settings could not be saved."
 msgstr "无法保存 DLSS 5 设置。"
@@ -1063,6 +1108,13 @@ msgid "Unlock"
 msgstr "解锁"
 
 msgid ""
+"For games that hide DLSS Frame Generation on RTX 20 cards, such as Wuthering Waves.\n"
+"The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
+"keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
+"Online games with anti cheat may treat any mod as a risk. Applies after a game restart."
+msgstr ""
+
+msgid ""
 "For games that hide DLSS Frame Generation on RTX 30 cards, such as Wuthering Waves.\n"
 "The game then sees an NVIDIA GeForce RTX 4090. DLSS, Streamline, the driver and MFG Unlocker\n"
 "keep using your real GPU. The game's recommended settings may assume an RTX 4090.\n"
@@ -1088,8 +1140,8 @@ msgstr "游戏帧生成选项未能在本次运行中应用。请查看日志。
 msgid "The game sees an NVIDIA GeForce RTX 4090 this session."
 msgstr "本次运行中，游戏识别到的显卡为 NVIDIA GeForce RTX 4090。"
 
-msgid "This GPU is not an RTX 30 card; the game sees its real name."
-msgstr "此 GPU 不是 RTX 30 显卡；游戏识别到的是其真实型号。"
+msgid "This GPU is not an RTX 20 or RTX 30 card; the game sees its real name."
+msgstr ""
 
 msgid "XeMFG standalone"
 msgstr "独立 XeMFG"
@@ -1355,6 +1407,11 @@ msgid "Mode"
 msgstr "模式"
 
 msgid ""
+"Follow game keeps the game's own Frame Generation setting.\n"
+"On an RTX 2060 start with 2x FG or 3x MFG. Higher multipliers need more GPU headroom."
+msgstr ""
+
+msgid ""
 "Follow game uses the game's own frame generation setting.\n"
 "Dynamic adjusts frame generation toward a target frame rate; it does not set a hard FPS limit."
 msgstr ""
@@ -1496,9 +1553,6 @@ msgstr "动态（检查中…）"
 
 #~ msgid "Faster"
 #~ msgstr "更快"
-
-#~ msgid "Full"
-#~ msgstr "完整"
 
 #~ msgid ""
 #~ "Render processes the DLSS input at render resolution, before DLSS SR, DLAA or Ray Reconstruction.\n"
@@ -1650,3 +1704,6 @@ msgstr "动态（检查中…）"
 
 #~ msgid "Faces & skin takes the Structure strength, the provider's own default."
 #~ msgstr "面部与皮肤使用结构强度，即提供程序自身的默认设置。"
+
+#~ msgid "This GPU is not an RTX 30 card; the game sees its real name."
+#~ msgstr "此 GPU 不是 RTX 30 显卡；游戏识别到的是其真实型号。"

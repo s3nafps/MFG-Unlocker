@@ -1,6 +1,6 @@
 # Universal MFG Unlocker V1.7.0
 
-**README** · [Install](docs/install.md) · [Using the menu](docs/menu.md) · [Game compatibility](docs/compatibility.md) · [OptiScaler](docs/optiscaler.md) · [XeMFG](docs/xemfg.md) · [Troubleshooting](docs/troubleshooting.md)
+**README** · [Install](docs/install.md) · [Beginner (RTX 20)](docs/beginner.md) · [Using the menu](docs/menu.md) · [Game compatibility](docs/compatibility.md) · [OptiScaler](docs/optiscaler.md) · [XeMFG](docs/xemfg.md) · [Troubleshooting](docs/troubleshooting.md)
 
 Multi Frame Generation for Windows x64 games, in one DLL. It brings **DLSS
 Multi Frame Generation** controls to RTX 50, RTX 40, RTX 30 and RTX 20 series
@@ -31,8 +31,10 @@ If this mod helps you, [help me get through university on Ko-fi](https://ko-fi.c
    lists the name for each game.
 3. Place it beside the **actual game executable**, not the launcher.
 4. Launch the game, enable Frame Generation, and press **Backspace** to open
-   the menu.
+   the menu. The menu opens in **Simple** detail by default: unlock Frame
+   Generation, pick 2x/3x, and use the DLSS 5 tab for Neural Rendering.
 
+New to this on an **RTX 2060**? Read the [Beginner guide](docs/beginner.md).
 The [install guide](docs/install.md) has the full steps, every supported
 filename, upgrading and uninstalling. To use OptiScaler, see
 [OptiScaler](docs/optiscaler.md). MFG Unlocker is not supported in games with

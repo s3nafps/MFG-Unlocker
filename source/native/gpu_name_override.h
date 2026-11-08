@@ -4,17 +4,17 @@
 #include <cwchar>
 #include <iterator>
 
-// Opt-in GPU name override: the menu's "Game FG option" toggle on RTX 30, saved as
-// [Compatibility] GpuNameOverride=1 in RTX40MFG-UI.ini beside the game
-// executable. Some games decide by adapter name whether to offer
-// DLSS Frame Generation; Wuthering Waves removes the option on RTX 30 even though
-// Streamline reports DLSS-G as supported there. When enabled, DXGI adapter
-// descriptions (GetDesc/GetDesc1/GetDesc2/GetDesc3) that the game executable
-// itself asks for report the RTX 40 identity OptiScaler's DXGI spoofing uses by
-// default, but only for an NVIDIA GeForce RTX 30 adapter. Vendor, LUID, memory
-// sizes, subsystem and revision stay real. Streamline, NGX, the driver, every
-// other module and this DLL keep the real description. Off by default; takes
-// effect at the next game start.
+// Opt-in GPU name override: the menu's "Game FG option" toggle on RTX 20 and
+// RTX 30, saved as [Compatibility] GpuNameOverride=1 in RTX40MFG-UI.ini beside
+// the game executable. Some games decide by adapter name whether to offer
+// DLSS Frame Generation; Wuthering Waves removes the option on RTX 20/30 even
+// though Streamline reports DLSS-G as supported there. When enabled, DXGI
+// adapter descriptions (GetDesc/GetDesc1/GetDesc2/GetDesc3) that the game
+// executable itself asks for report the RTX 40 identity OptiScaler's DXGI
+// spoofing uses by default, but only for an NVIDIA GeForce RTX 20/30 adapter.
+// Vendor, LUID, memory sizes, subsystem and revision stay real. Streamline,
+// NGX, the driver, every other module and this DLL keep the real description.
+// Off by default; takes effect at the next game start.
 namespace gpu_name_override
 {
 constexpr wchar_t kSection[] = L"Compatibility";
