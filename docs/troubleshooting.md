@@ -1,4 +1,4 @@
-[README](../README.md) · [Install](install.md) · [Using the menu](menu.md) · [Game compatibility](compatibility.md) · [OptiScaler](optiscaler.md) · [XeMFG](xemfg.md) · **Troubleshooting**
+[README](../README.md) · [Install](install.md) · [Beginner (RTX 20)](beginner.md) · [Using the menu](menu.md) · [Game compatibility](compatibility.md) · [OptiScaler](optiscaler.md) · [XeMFG](xemfg.md) · **Troubleshooting**
 
 # Troubleshooting
 

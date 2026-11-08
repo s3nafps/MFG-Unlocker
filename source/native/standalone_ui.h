@@ -11,4 +11,7 @@ void DrawFooterStatus();
 // its real/DLSS frame rate text for the top-left corner while the menu is closed.
 bool PinnedFps();
 void DrawPinnedFps();
+// Beginner menu: only the MFG unlock and DLSS 5 controls most players need.
+// Saved as [Overlay] SimpleMenu in RTX40MFG-UI.ini; on by default.
+bool SimpleMenu() noexcept;
 }

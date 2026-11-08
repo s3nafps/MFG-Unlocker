@@ -3,6 +3,15 @@
 What changed in each release. Downloads and the full release notes are on
 [GitHub Releases](https://github.com/dashdogy/MFG-Unlocker/releases).
 
+## Unreleased
+
+- **Simple menu detail (default on).** **Menu → Detail** chooses **Simple** or
+  **Full**. Simple keeps Game FG unlock, MFG multipliers up to 4x, and on the
+  DLSS 5 tab Hook Method, Look and Half rate, with short RTX 20/30 quick-start
+  notes. Full restores every option. Saved as `SimpleMenu` under `[Overlay]` in
+  `RTX40MFG-UI.ini`. See [Beginner (RTX 20)](docs/beginner.md) and
+  [Using the menu](docs/menu.md#simple-or-full).
+
 ## [V1.7.0](https://github.com/dashdogy/MFG-Unlocker/releases/tag/v1.7.0) - 25 Oct 2026
 
 - **DLSS 5 support in the menu.** With NVIDIA's DLSS 5 dll (`nvngx_dlssnr.dll`)

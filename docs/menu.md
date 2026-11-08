@@ -1,4 +1,4 @@
-[README](../README.md) · [Install](install.md) · **Using the menu** · [Game compatibility](compatibility.md) · [OptiScaler](optiscaler.md) · [XeMFG](xemfg.md) · [Troubleshooting](troubleshooting.md)
+[README](../README.md) · [Install](install.md) · [Beginner (RTX 20)](beginner.md) · **Using the menu** · [Game compatibility](compatibility.md) · [OptiScaler](optiscaler.md) · [XeMFG](xemfg.md) · [Troubleshooting](troubleshooting.md)
 
 # Using the menu
 
@@ -6,6 +6,16 @@ Press **Backspace** to open or close the menu. The hotkey can be changed there
 (**Change key** in the footer). The first launch menu opens when the game
 window is foreground and does not reopen automatically after it has been shown
 and saved.
+
+## Simple or Full
+
+**Menu → Detail** chooses **Simple** or **Full**. Simple is the default and
+keeps the controls most players need: **Game FG option** unlock on RTX 20/30,
+an MFG multiplier up to 4x, and on the [DLSS 5](#dlss-5) tab Hook Method, Look
+and Half rate. Full restores every option (presets, latency, XeMFG, Compare,
+diagnostics). The choice is saved as `SimpleMenu` under `[Overlay]` in
+`RTX40MFG-UI.ini`. Newcomers on an RTX 2060 can follow the
+[Beginner guide](beginner.md).
 
 The menu has a **Frame generation** tab and, when NVIDIA's DLSS 5 dll is
 present, a [DLSS 5](#dlss-5) tab. Each tab has a **Status** section; check it
